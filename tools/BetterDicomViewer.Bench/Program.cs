@@ -13,12 +13,22 @@ switch (command)
     case "open":
         await Benchmarks.OpenSeriesAsync(roots);
         break;
+    case "validate-export":
+        await Benchmarks.ExportValidationAsync(LocalSettings.DataRoots(), args.Length > 1 ? args[1] : Path.Combine(Path.GetTempPath(), "bdv-validation"));
+        break;
+    case "color":
+        await Benchmarks.ColorCheckAsync(roots);
+        break;
+    case "vr":
+        await Benchmarks.VolumeRenderAsync(roots);
+        break;
     case "all":
         await Benchmarks.ScanAsync(roots);
         await Benchmarks.OpenSeriesAsync(roots);
+        await Benchmarks.VolumeRenderAsync(roots);
         break;
     default:
-        Console.WriteLine("usage: BetterDicomViewer.Bench <scan|open|all> [root ...]");
+        Console.WriteLine("usage: BetterDicomViewer.Bench <scan|open|vr|all> [root ...]");
         Console.WriteLine("Roots default to dataRoots in local.settings.json (gitignored).");
         break;
 }

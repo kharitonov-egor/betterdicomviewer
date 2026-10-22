@@ -1,0 +1,354 @@
+<Window x:Class="BetterDicomViewer.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:t="clr-namespace:BetterDicomViewer.App.Theme"
+        Title="Better DICOM Viewer"
+        Width="1600" Height="980" MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        AllowDrop="True">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Command bar -->
+        <Border Grid.Row="0" Padding="8,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
+            <DockPanel LastChildFill="False">
+                <StackPanel x:Name="ToolbarLeft" DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" />
+                <StackPanel x:Name="ToolbarRight" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="LibraryColumn" Width="300" MinWidth="0" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="InspectorColumn" Width="330" MinWidth="0" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Library -->
+            <DockPanel x:Name="LibraryPane" Grid.Column="0" Margin="10,10,6,10">
+                <TextBlock DockPanel.Dock="Top" Text="Library" Style="{StaticResource PaneTitle}" />
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <TextBox x:Name="SearchBox" Padding="30,6,8,6" TextChanged="OnSearchChanged"
+                             ToolTip="Search patients, studies and series (Ctrl+F)"
+                             AutomationProperties.Name="Search library" />
+                    <TextBlock Text="&#xE721;" Style="{StaticResource GlyphText}" FontSize="13" HorizontalAlignment="Left" Margin="10,0,0,0"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" IsHitTestVisible="False" />
+                </Grid>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button x:Name="OpenFolderButton" Click="OnOpenFolderClick" Padding="10,5" Margin="0,0,6,0" ToolTip="Open a folder or disc copy (Ctrl+O)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE838;" Style="{StaticResource GlyphText}" FontSize="14" Margin="0,0,6,0" />
+                            <TextBlock Text="Open folder" />
+                        </StackPanel>
+                    </Button>
+                    <Button Click="OnOpenDicomDirClick" Padding="10,5" ToolTip="Open a DICOMDIR file (Ctrl+Shift+O)">
+                        <TextBlock Text="DICOMDIR…" />
+                    </Button>
+                </StackPanel>
+                <Border DockPanel.Dock="Bottom" x:Name="ScanBanner" Style="{StaticResource Card}" Margin="0,8,0,0" Padding="10" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="ScanText" TextWrapping="Wrap" FontSize="12" />
+                        <ProgressBar x:Name="ScanProgress" Height="4" Margin="0,6,0,0" Minimum="0" Maximum="1" />
+                        <Button x:Name="CancelScanButton" Content="Cancel" HorizontalAlignment="Right" Margin="0,6,0,0" Padding="10,3" Click="OnCancelScanClick" />
+                    </StackPanel>
+                </Border>
+                <Grid>
+                    <TreeView x:Name="LibraryTree" BorderThickness="0" Background="Transparent"
+                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                              AutomationProperties.Name="Studies and series"
+                              MouseDoubleClick="OnLibraryDoubleClick" PreviewMouseMove="OnLibraryMouseMove" KeyDown="OnLibraryKeyDown" />
+                    <StackPanel x:Name="LibraryEmpty" VerticalAlignment="Center" Margin="12">
+                        <TextBlock Text="No scans open" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                        <TextBlock Style="{StaticResource HintText}" TextAlignment="Center" Margin="0,6,0,12"
+                                   Text="Open a folder (for example a copied CD) or a DICOMDIR file. Files are read in place and never modified." />
+                        <Button Content="Open folder…" HorizontalAlignment="Center" Padding="14,6" Click="OnOpenFolderClick" Style="{DynamicResource AccentButtonStyle}" />
+                        <Button Content="Open synthetic demo study" HorizontalAlignment="Center" Margin="0,8,0,0" Padding="14,6" Click="OnOpenDemoClick" />
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" ResizeBehavior="PreviousAndNext" Focusable="False" />
+
+            <!-- Viewports -->
+            <Grid x:Name="ViewportGrid" Grid.Column="2" Margin="0,8,0,8" Background="{StaticResource ViewportBackground}" />
+
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" ResizeBehavior="PreviousAndNext" Focusable="False" />
+
+            <!-- Inspector -->
+            <ScrollViewer x:Name="InspectorPane" Grid.Column="4" Margin="6,8,8,8" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="Inspector" Margin="0,0,6,0">
+
+                    <Expander x:Name="ImageSection" Header="Image" IsExpanded="True" Style="{StaticResource InspectorExpander}">
+                        <StackPanel Margin="4,6,4,4">
+                            <TextBlock x:Name="ImageTitle" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock x:Name="ImageSubtitle" Style="{StaticResource HintText}" Margin="0,2,0,0" />
+                            <TextBlock Text="Image set" Style="{StaticResource SectionLabel}" />
+                            <ComboBox x:Name="DisplaySetCombo" SelectionChanged="OnDisplaySetChanged" AutomationProperties.Name="Image set" />
+                            <TextBlock Text="Plane" Style="{StaticResource SectionLabel}" />
+                            <ComboBox x:Name="PlaneCombo" SelectionChanged="OnPlaneChanged" AutomationProperties.Name="Plane">
+                                <ComboBoxItem Content="Native (as acquired)  Alt+1" Tag="Acquisition" />
+                                <ComboBoxItem Content="Axial  Alt+2" Tag="Axial" />
+                                <ComboBoxItem Content="Coronal  Alt+3" Tag="Coronal" />
+                                <ComboBoxItem Content="Sagittal  Alt+4" Tag="Sagittal" />
+                                <ComboBoxItem Content="3D volume  Alt+5" Tag="Volume3D" />
+                            </ComboBox>
+                            <TextBlock Text="Window preset" Style="{StaticResource SectionLabel}" />
+                            <ComboBox x:Name="PresetCombo" SelectionChanged="OnPresetChanged" AutomationProperties.Name="Window preset" />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Level (centre)" Style="{StaticResource HintText}" />
+                                    <TextBox x:Name="LevelBox" LostFocus="OnWindowBoxCommitted" KeyDown="OnWindowBoxKeyDown" AutomationProperties.Name="Window level" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Width" Style="{StaticResource HintText}" />
+                                    <TextBox x:Name="WidthBox" LostFocus="OnWindowBoxCommitted" KeyDown="OnWindowBoxKeyDown" AutomationProperties.Name="Window width" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Colour map" Style="{StaticResource HintText}" />
+                                    <ComboBox x:Name="ColormapCombo" SelectionChanged="OnColormapChanged" AutomationProperties.Name="Colour map" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Interpolation" Style="{StaticResource HintText}" />
+                                    <ComboBox x:Name="InterpolationCombo" SelectionChanged="OnInterpolationChanged" AutomationProperties.Name="Interpolation">
+                                        <ComboBoxItem Content="Nearest" />
+                                        <ComboBoxItem Content="Linear" />
+                                        <ComboBoxItem Content="Cubic" />
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+                            <CheckBox x:Name="InvertCheck" Content="Invert grey scale (I)" Margin="0,8,0,0" Click="OnInvertClick" />
+                            <TextBlock Text="Thick slab" Style="{StaticResource SectionLabel}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="SlabCombo" SelectionChanged="OnSlabChanged" AutomationProperties.Name="Slab mode">
+                                    <ComboBoxItem Content="Off" />
+                                    <ComboBoxItem Content="Mean" />
+                                    <ComboBoxItem Content="MIP" />
+                                    <ComboBoxItem Content="MinIP" />
+                                </ComboBox>
+                                <Slider x:Name="SlabSlider" Grid.Column="1" Margin="8,0,0,0" Minimum="1" Maximum="100" Value="10" VerticalAlignment="Center"
+                                        ValueChanged="OnSlabThicknessChanged" AutomationProperties.Name="Slab thickness in millimetres" ToolTip="Slab thickness (mm)" />
+                            </Grid>
+                            <WrapPanel Margin="0,10,0,0">
+                                <Button Content="Reset (R)" Padding="10,4" Margin="0,0,6,6" Click="OnResetViewClick" />
+                                <Button Content="Rotate ⟲" Padding="10,4" Margin="0,0,6,6" Click="OnRotateLeftClick" ToolTip="Rotate 90° left ([)" />
+                                <Button Content="Rotate ⟳" Padding="10,4" Margin="0,0,6,6" Click="OnRotateRightClick" ToolTip="Rotate 90° right (])" />
+                                <Button Content="Flip ↔" Padding="10,4" Margin="0,0,6,6" Click="OnFlipHClick" ToolTip="Flip horizontally (H)" />
+                                <Button Content="Flip ↕" Padding="10,4" Margin="0,0,6,6" Click="OnFlipVClick" ToolTip="Flip vertically (V)" />
+                            </WrapPanel>
+                            <StackPanel x:Name="CinePanel" Margin="0,4,0,0">
+                                <TextBlock Text="Cine" Style="{StaticResource SectionLabel}" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="CineButton" Padding="10,4" Click="OnCineClick" ToolTip="Play or pause (Space)">
+                                        <TextBlock x:Name="CineGlyph" Text="&#xE768;" Style="{StaticResource GlyphText}" FontSize="13" />
+                                    </Button>
+                                    <Slider x:Name="CineSpeed" Grid.Column="1" Margin="8,0" Minimum="1" Maximum="60" Value="25" VerticalAlignment="Center"
+                                            ValueChanged="OnCineSpeedChanged" AutomationProperties.Name="Cine frames per second" />
+                                    <TextBlock x:Name="CineSpeedText" Grid.Column="2" VerticalAlignment="Center" MinWidth="48" />
+                                </Grid>
+                            </StackPanel>
+                            <TextBlock x:Name="ImageWarnings" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" FontSize="12" Margin="0,8,0,0" />
+                            <Button Content="Show all DICOM attributes…" HorizontalAlignment="Left" Padding="10,4" Margin="0,8,0,0" Click="OnShowTagsClick" />
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander x:Name="MeasureSection" Header="Measurements" IsExpanded="True" Style="{StaticResource InspectorExpander}">
+                        <StackPanel Margin="4,6,4,4">
+                            <TextBlock Style="{StaticResource HintText}" Text="Draw with Length (L), Angle (A), Ellipse (E), Rectangle (Q), Freehand (F), Arrow (K), Text (T) or Point (D). Drag handles to edit; Delete removes the selection." />
+                            <ListBox x:Name="MeasureList" Margin="0,8,0,0" MaxHeight="260" SelectionChanged="OnMeasureSelected" MouseDoubleClick="OnMeasureDoubleClick"
+                                     AutomationProperties.Name="Measurements" />
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Content="Delete" Padding="10,4" Margin="0,0,6,6" Click="OnDeleteMeasureClick" />
+                                <Button Content="Rename…" Padding="10,4" Margin="0,0,6,6" Click="OnRenameMeasureClick" />
+                                <Button Content="Export CSV…" Padding="10,4" Margin="0,0,6,6" Click="OnExportMeasurementsCsvClick" />
+                                <Button Content="Export JSON…" Padding="10,4" Margin="0,0,6,6" Click="OnExportMeasurementsJsonClick" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander x:Name="SegmentSection" Header="Segmentation" IsExpanded="False" Style="{StaticResource InspectorExpander}">
+                        <StackPanel Margin="4,6,4,4">
+                            <TextBlock x:Name="SegmentHint" Style="{StaticResource HintText}" Text="Open a volume to segment. Brush (B), Eraser (X) and Region grow (G) edit the active segment; Shift+drag erases with the brush." />
+                            <ListBox x:Name="SegmentList" Margin="0,8,0,0" MaxHeight="200" SelectionChanged="OnSegmentSelected" AutomationProperties.Name="Segments" />
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Content="Add" Padding="10,4" Margin="0,0,6,6" Click="OnAddSegmentClick" />
+                                <Button Content="Rename…" Padding="10,4" Margin="0,0,6,6" Click="OnRenameSegmentClick" />
+                                <Button Content="Show/hide" Padding="10,4" Margin="0,0,6,6" Click="OnToggleSegmentClick" />
+                                <Button Content="Clear" Padding="10,4" Margin="0,0,6,6" Click="OnClearSegmentClick" />
+                            </WrapPanel>
+                            <TextBlock Text="Brush radius" Style="{StaticResource SectionLabel}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="BrushSlider" Minimum="0.5" Maximum="50" Value="6" ValueChanged="OnBrushSizeChanged" AutomationProperties.Name="Brush radius in millimetres" />
+                                <TextBlock x:Name="BrushText" Grid.Column="1" MinWidth="56" TextAlignment="Right" VerticalAlignment="Center" />
+                            </Grid>
+                            <CheckBox x:Name="SphereCheck" Content="3D sphere brush (paints across slices)" Margin="0,6,0,0" Click="OnSegOptionClick" />
+                            <CheckBox x:Name="ThresholdCheck" Content="Paint only inside the intensity range" Margin="0,4,0,0" Click="OnSegOptionClick" />
+                            <CheckBox x:Name="Grow3DCheck" Content="Region grow in 3D (off: current slice only)" Margin="0,4,0,0" IsChecked="True" Click="OnSegOptionClick" />
+                            <TextBlock Text="Intensity range (display units)" Style="{StaticResource SectionLabel}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="ThresholdLowBox" LostFocus="OnThresholdCommitted" AutomationProperties.Name="Lower threshold" />
+                                <TextBox x:Name="ThresholdHighBox" Grid.Column="2" LostFocus="OnThresholdCommitted" AutomationProperties.Name="Upper threshold" />
+                                <Button Grid.Column="3" Content="From window" Padding="8,4" Margin="6,0,0,0" Click="OnThresholdFromWindowClick" />
+                            </Grid>
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Content="Fill range in volume" Padding="10,4" Margin="0,0,6,6" Click="OnThresholdFillClick" ToolTip="Assign every unlabelled voxel in the range to the active segment" />
+                                <Button Content="Fill between slices" Padding="10,4" Margin="0,0,6,6" Click="OnInterpolateClick" ToolTip="Interpolate the active segment across skipped slices" />
+                            </WrapPanel>
+                            <TextBlock Text="Overlay opacity" Style="{StaticResource SectionLabel}" />
+                            <Slider x:Name="LabelOpacitySlider" Minimum="0" Maximum="1" Value="0.35" ValueChanged="OnLabelOpacityChanged" AutomationProperties.Name="Segmentation opacity" />
+                            <TextBlock x:Name="SegmentStatsText" Style="{StaticResource HintText}" Margin="0,8,0,0" />
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Content="Statistics" Padding="10,4" Margin="0,0,6,6" Click="OnSegmentStatsClick" />
+                                <Button Content="Export…" Padding="10,4" Margin="0,0,6,6" Click="OnExportSegmentationClick" ToolTip="NRRD or NIfTI label map, STL or OBJ surface, CSV statistics (Ctrl+Shift+E)" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander x:Name="FusionSection" Header="PET/CT fusion" IsExpanded="False" Style="{StaticResource InspectorExpander}">
+                        <StackPanel Margin="4,6,4,4">
+                            <TextBlock Style="{StaticResource HintText}" Text="Overlay a PET series from the same study on the image in the active viewport." />
+                            <ComboBox x:Name="PetCombo" Margin="0,8,0,0" AutomationProperties.Name="PET series" />
+                            <WrapPanel Margin="0,8,0,0">
+                                <Button Content="Fuse" Padding="12,4" Margin="0,0,6,6" Click="OnFuseClick" Style="{DynamicResource AccentButtonStyle}" />
+                                <Button Content="Remove" Padding="10,4" Margin="0,0,6,6" Click="OnUnfuseClick" />
+                                <Button Content="PET/CT layout (Ctrl+6)" Padding="10,4" Margin="0,0,6,6" Click="OnPetCtLayoutClick" />
+                            </WrapPanel>
+                            <TextBlock Text="Opacity" Style="{StaticResource SectionLabel}" />
+                            <Slider x:Name="FusionOpacitySlider" Minimum="0" Maximum="1" Value="0.5" ValueChanged="OnFusionChanged" AutomationProperties.Name="Fusion opacity" />
+                            <TextBlock Text="Colour map" Style="{StaticResource SectionLabel}" />
+                            <ComboBox x:Name="FusionColormapCombo" SelectionChanged="OnFusionColormapChanged" AutomationProperties.Name="Fusion colour map" />
+                            <TextBlock x:Name="FusionRangeLabel" Text="Range" Style="{StaticResource SectionLabel}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="FusionLowBox" LostFocus="OnFusionRangeCommitted" AutomationProperties.Name="Fusion lower bound" />
+                                <TextBox x:Name="FusionHighBox" Grid.Column="2" LostFocus="OnFusionRangeCommitted" AutomationProperties.Name="Fusion upper bound" />
+                            </Grid>
+                            <TextBlock Text="SUV" Style="{StaticResource SectionLabel}" />
+                            <TextBlock x:Name="SuvText" TextWrapping="Wrap" FontSize="12" />
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander x:Name="VrSection" Header="3D rendering" IsExpanded="False" Style="{StaticResource InspectorExpander}">
+                        <StackPanel Margin="4,6,4,4">
+                            <TextBlock Style="{StaticResource HintText}" Text="Alt+5 shows the active volume in 3D. Drag to rotate, Ctrl+drag to roll, right-drag or wheel to zoom, middle-drag to pan. Double-click a structure to move linked views there." />
+                            <TextBlock Text="Rendering" Style="{StaticResource SectionLabel}" />
+                            <ComboBox x:Name="VrModeCombo" SelectionChanged="OnVrModeChanged" AutomationProperties.Name="3D rendering mode">
+                                <ComboBoxItem Content="Volume rendering (preset)" />
+                                <ComboBoxItem Content="Maximum intensity projection" />
+                                <ComboBoxItem Content="Minimum intensity projection" />
+                                <ComboBoxItem Content="Average projection" />
+                            </ComboBox>
+                            <TextBlock Text="Preset" Style="{StaticResource SectionLabel}" />
+                            <ComboBox x:Name="VrPresetCombo" SelectionChanged="OnVrPresetChanged" AutomationProperties.Name="3D preset" />
+                            <TextBlock Text="Opacity threshold shift" Style="{StaticResource SectionLabel}" />
+                            <Slider x:Name="VrShiftSlider" Minimum="-600" Maximum="600" Value="0" ValueChanged="OnVrSliderChanged" AutomationProperties.Name="Opacity shift" />
+                            <TextBlock Text="Opacity strength" Style="{StaticResource SectionLabel}" />
+                            <Slider x:Name="VrScaleSlider" Minimum="0.1" Maximum="2.5" Value="1" ValueChanged="OnVrSliderChanged" AutomationProperties.Name="Opacity strength" />
+                            <CheckBox x:Name="VrShadeCheck" Content="Lighting and shading" IsChecked="True" Margin="0,8,0,0" Click="OnVrOptionClick" />
+                            <CheckBox x:Name="VrInvertCheck" Content="Invert projections (dark on light)" Margin="0,4,0,0" Click="OnVrOptionClick" />
+                            <CheckBox x:Name="VrLabelsCheck" Content="Show segments as surfaces" IsChecked="True" Margin="0,4,0,0" Click="OnVrOptionClick" />
+                            <TextBlock Text="Crop (left–right, front–back, feet–head of the volume grid)" Style="{StaticResource SectionLabel}" TextWrapping="Wrap" />
+                            <StackPanel x:Name="CropPanel" />
+                            <TextBlock Text="View from" Style="{StaticResource SectionLabel}" />
+                            <WrapPanel>
+                                <Button Content="Front" Padding="8,4" Margin="0,0,4,4" Tag="A" Click="OnVrViewClick" />
+                                <Button Content="Back" Padding="8,4" Margin="0,0,4,4" Tag="P" Click="OnVrViewClick" />
+                                <Button Content="Left" Padding="8,4" Margin="0,0,4,4" Tag="L" Click="OnVrViewClick" />
+                                <Button Content="Right" Padding="8,4" Margin="0,0,4,4" Tag="R" Click="OnVrViewClick" />
+                                <Button Content="Top" Padding="8,4" Margin="0,0,4,4" Tag="S" Click="OnVrViewClick" />
+                                <Button Content="Bottom" Padding="8,4" Margin="0,0,4,4" Tag="I" Click="OnVrViewClick" />
+                            </WrapPanel>
+                            <CheckBox x:Name="GpuCheck" Content="Use the high-performance GPU (applies after restart)" Margin="0,8,0,0" Click="OnGpuClick" />
+                            <TextBlock x:Name="VrInfoText" Style="{StaticResource HintText}" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Expander>
+
+                    <Expander x:Name="ExportSection" Header="Export and privacy" IsExpanded="False" Style="{StaticResource InspectorExpander}">
+                        <StackPanel Margin="4,6,4,4">
+                            <Button Content="Save screenshot…  (Ctrl+Shift+S)" HorizontalAlignment="Stretch" Padding="10,5" Margin="0,0,0,6" Click="OnScreenshotClick" />
+                            <Button Content="Copy viewport image  (Ctrl+C)" HorizontalAlignment="Stretch" Padding="10,5" Margin="0,0,0,6" Click="OnCopyImageClick" />
+                            <Button Content="Export de-identified copy…  (Ctrl+Shift+D)" HorizontalAlignment="Stretch" Padding="10,5" Margin="0,0,0,6" Click="OnDeidentifyClick" />
+                            <TextBlock Style="{StaticResource HintText}" Text="Redaction rectangles black out burned-in text (for example ultrasound headers) in de-identified exports. Draw them with the redaction tool on a 2D image." Margin="0,6,0,6" />
+                            <WrapPanel>
+                                <ToggleButton x:Name="RedactToggle" Content="Draw redaction region" Padding="10,4" Margin="0,0,6,6" Click="OnRedactToolClick" />
+                                <Button Content="Clear regions" Padding="10,4" Margin="0,0,6,6" Click="OnClearRedactionsClick" />
+                            </WrapPanel>
+                            <CheckBox x:Name="PrivacyCheck" Content="Hide patient details on screen (Ctrl+Shift+H)" Margin="0,6,0,0" Click="OnPrivacyClick" />
+                            <Button Content="Clear local cache and index…" HorizontalAlignment="Left" Padding="10,4" Margin="0,10,0,0" Click="OnClearCacheClick" />
+                            <TextBlock x:Name="CacheText" Style="{StaticResource HintText}" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Padding="10,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="HoverText" Grid.Column="1" FontSize="12" Margin="16,0" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" />
+                <TextBlock x:Name="PerfText" Grid.Column="2" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </Border>
+
+        <!-- Text prompt overlay -->
+        <Border x:Name="PromptOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed">
+            <Border Style="{StaticResource Card}" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}" Width="420" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="18">
+                <StackPanel>
+                    <TextBlock x:Name="PromptTitle" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <TextBox x:Name="PromptBox" KeyDown="OnPromptKeyDown" AutomationProperties.Name="Text" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                        <Button Content="OK" Width="90" Margin="0,0,8,0" Click="OnPromptOk" Style="{DynamicResource AccentButtonStyle}" />
+                        <Button Content="Cancel" Width="90" Click="OnPromptCancel" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

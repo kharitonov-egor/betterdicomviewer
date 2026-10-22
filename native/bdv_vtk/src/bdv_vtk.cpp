@@ -699,7 +699,7 @@ BDV_API int bdv_vr_render(void* vrPtr, int width, int height, int interactive, v
     }
 
     vtkNew<vtkUnsignedCharArray> pixels;
-    if (vr->window->GetRGBACharPixelData(0, 0, width - 1, height - 1, 0, pixels) != 0 ||
+    if (vr->window->GetRGBACharPixelData(0, 0, width - 1, height - 1, 0, pixels) != VTK_OK ||
       pixels->GetNumberOfTuples() < static_cast<vtkIdType>(width) * height)
     {
       g_lastError = "Could not read rendered pixels.";
