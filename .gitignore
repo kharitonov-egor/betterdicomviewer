@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+build/
+out/
+artifacts/
+.vs/
+*.user
+*.suo
+__pycache__/
+.venv/
+
+# Private local data, including extensionless DICOM files inside these folders
+scans/
+data/
+private/
+exports/
+cache/
+screenshots-private/
+*.dcm
+*.dicom
+DICOMDIR
+*.db
+*.sqlite
+*.sqlite3
+*.log
+.env
+.env.*
+!.env.example
