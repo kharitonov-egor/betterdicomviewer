@@ -66,7 +66,7 @@ tools/BetterDicomViewer.Bench     Benchmarks against local data (paths come from
 
 - Windows 10 1809 or later (Windows 11 recommended for the Fluent look), x64.
 - A GPU with OpenGL 3.2 or newer for 3D. 2D viewing, MPR and every other feature work without one.
-- The release package is self-contained: the .NET runtime, `bdv_vtk.dll` (statically linked VTK and C runtime) and the codec DLLs ship together. No installer, administrator rights or network access are needed.
+- The release package is self-contained: the .NET runtime, `bdv_vtk.dll` (statically linked VTK and C runtime) and the codec DLLs ship together. No installer, administrator rights or network access are needed. Releases ship it two ways: a single exe that unpacks itself to `%TEMP%\.net` on first launch, and a zip of the same files.
 
 ## Build requirements
 

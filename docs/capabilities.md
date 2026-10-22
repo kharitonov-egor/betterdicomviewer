@@ -115,6 +115,6 @@ Status key:
 | GPU selection on hybrid laptops | Implemented | Sets the Windows per-app preference unless the user has chosen one |
 | Benchmarks of indexing, first image, scrolling, slabs, 3D, memory | Implemented | [benchmarks.md](benchmarks.md) |
 | Truly cold-cache timing (after flushing the OS file cache) | Not done | Requires administrator rights; timings may include OS caching |
-| Installer (MSIX) and code signing | Not done | Release is a self-contained zip |
+| Installer (MSIX) and code signing | Not done | Releases are an unsigned single-file exe and a zip |
 | Automated UI tests with assertions | Partial | One end-to-end smoke test drives the real app (`tests/BetterDicomViewer.UiTests`); other UI behaviour was checked through scripted runs and screenshots |
 | Localisation | Not done | English only |

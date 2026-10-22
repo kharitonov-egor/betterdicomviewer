@@ -56,3 +56,16 @@ if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -CompressionLevel Optimal
 $size = (Get-Item $zip).Length / 1MB
 Write-Host ("Package: {0} ({1:N0} MB). Run BetterDicomViewer.exe from the extracted folder." -f $zip, $size)
+
+# Dicom.Native.dll (fo-dicom.Codecs) is a mixed-mode assembly, which cannot load from inside a bundle, so the
+# single-file exe extracts all of its content on first launch.
+$single = Join-Path $repo 'artifacts\publish\single'
+if (Test-Path $single) { Remove-Item -Recurse -Force $single }
+Invoke-Checked $dotnet @(
+    'publish', (Join-Path $repo 'src\BetterDicomViewer.App\BetterDicomViewer.App.csproj'),
+    '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true',
+    '-p:PublishSingleFile=true', '-p:IncludeAllContentForSelfExtract=true', '-p:EnableCompressionInSingleFile=true',
+    '-p:PublishReadyToRun=true', '-p:DebugType=none', '-o', $single)
+$exe = Join-Path $repo "artifacts\BetterDicomViewer-$version-win-x64.exe"
+Copy-Item (Join-Path $single 'BetterDicomViewer.exe') $exe -Force
+Write-Host ("Single-file exe: {0} ({1:N0} MB)." -f $exe, ((Get-Item $exe).Length / 1MB))

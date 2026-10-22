@@ -1,3 +1,5 @@
+<img src="docs/icon.png" alt="" width="96">
+
 # Better DICOM Viewer
 
 A native Windows 11 DICOM viewer with a dark-only interface, built for fast interaction. It reads scans in place from a folder or a copied CD/DVD, shows 2D, MPR and 3D views, fuses PET with CT, measures in physical units, segments structures, and writes de-identified copies.
@@ -14,11 +16,12 @@ Version 0.1 is a working application: CT and PET volumes, radiographs, ultrasoun
 
 Requirements: Windows 10 1809 or later (Windows 11 recommended), 64-bit, 8 GB RAM or more. A GPU with OpenGL 3.2 is needed only for 3D rendering.
 
-1. Build the package (see below) or take a release zip, then extract `BetterDicomViewer-0.1.0-win-x64.zip` to any folder.
-2. Run `BetterDicomViewer.exe`. Nothing is installed and no administrator rights are needed.
-3. Open scans with **Open folder** (Ctrl+O), **DICOMDIR…** (Ctrl+Shift+O), or by dragging a folder onto the window. To try the app without real scans, click **Open synthetic demo study**.
+1. Download `BetterDicomViewer-0.1.0-win-x64.exe` from the [latest release](https://github.com/kharitonov-egor/betterdicomviewer/releases/latest) and run it. Nothing is installed and no administrator rights are needed.
+2. Open scans with **Open folder** (Ctrl+O), **DICOMDIR…** (Ctrl+Shift+O), or by dragging a folder onto the window. To try the app without real scans, click **Open synthetic demo study**.
 
-The package is self-contained: it includes the .NET runtime, the VTK imaging bridge (`bdv_vtk.dll`) and the DICOM codecs. The app never contacts the network.
+The exe is not code-signed, so SmartScreen may show "Windows protected your PC" on the first run. Choose **More info**, then **Run anyway**.
+
+The exe is self-contained: it includes the .NET runtime, the VTK imaging bridge (`bdv_vtk.dll`) and the DICOM codecs. The first launch unpacks them to `%TEMP%\.net\BetterDicomViewer` (about 160 MB) and takes about 7 seconds. Later launches reuse that folder and take about 2 seconds. The release also has a zip of the same files. Extract it anywhere and run `BetterDicomViewer.exe` from there, and nothing is unpacked to `%TEMP%`. The app never contacts the network.
 
 On laptops with two GPUs, the app sets the Windows per-app graphics preference to the high-performance GPU on first start, unless you have already chosen one. Windows applies that preference only to processes started after it changes, so the first launch restarts itself once before showing a window. 3D rendering on the test laptop dropped from 169 ms to 10 ms per frame with that change. The 3D panel shows the active GPU and has a checkbox to switch, and **Settings › System › Display › Graphics** shows the same setting.
 
@@ -38,7 +41,7 @@ dotnet test tests\BetterDicomViewer.Tests
 dotnet run --project src\BetterDicomViewer.App
 dotnet test tests\BetterDicomViewer.UiTests   # launches the app
 
-# Self-contained release folder and zip under artifacts\
+# Single-file exe, release folder and zip under artifacts\
 powershell -File scripts\package.ps1
 ```
 
@@ -134,7 +137,7 @@ F1 (or Shift+?) opens this list in the app, with search. Ctrl+K opens a command 
 ## Data handling and privacy
 
 - Source scans are opened read-only and never modified, copied or moved. The de-identified export refuses to write inside a source folder.
-- The local header index, saved measurements and segmentations live under `%LOCALAPPDATA%\BetterDicomViewer`. Decoded images and thumbnails stay in memory, within a budget of 45% of RAM. **Export and privacy › Clear local cache and index** removes the index.
+- The local header index, saved measurements and segmentations live under `%LOCALAPPDATA%\BetterDicomViewer`. Decoded images and thumbnails stay in memory, within a budget of 45% of RAM. **Export and privacy › Clear local cache and index** removes the index. The single-file exe also unpacks its own program files to `%TEMP%\.net\BetterDicomViewer`.
 - There are no accounts, telemetry, update checks or network access, and no fonts or resources are downloaded at runtime.
 - **Hide patient details** (Ctrl+Shift+H) masks names, IDs and dates in the library, overlays and attribute viewer, which is useful when sharing a screen. Pixel data can still contain burned-in text.
 - De-identified export follows DICOM PS3.15 Annex E but cannot guarantee anonymity. Read the report and check the images before sharing.
