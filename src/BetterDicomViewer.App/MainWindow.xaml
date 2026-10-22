@@ -16,10 +16,14 @@
 
         <!-- Command bar -->
         <Border Grid.Row="0" Padding="8,6" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
-            <DockPanel LastChildFill="False">
-                <StackPanel x:Name="ToolbarLeft" DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" />
-                <StackPanel x:Name="ToolbarRight" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" />
-            </DockPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <WrapPanel x:Name="ToolbarLeft" Orientation="Horizontal" VerticalAlignment="Center" />
+                <StackPanel x:Name="ToolbarRight" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0" />
+            </Grid>
         </Border>
 
         <Grid Grid.Row="1">

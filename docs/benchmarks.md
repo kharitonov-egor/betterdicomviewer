@@ -56,7 +56,7 @@ Volume 384 × 384 × 110 (synthetic CT), soft-tissue preset with shading and gra
 | Intel UHD (integrated) | 521 ms | 169 ms | 49 ms |
 | RTX 4050 (per-app high-performance preference) | 284 ms | 9.8 ms | 3.9 ms |
 
-The app sets the Windows high-performance preference for its executable on first start, unless the user has chosen one, so 3D runs on the discrete GPU. Interactive frames use half the ray samples and 1.6× image subsampling, then a full-quality frame follows when the drag ends.
+The app sets the Windows high-performance preference for its executable on first start, unless the user has chosen one, and restarts itself once so the setting takes effect. 3D then runs on the discrete GPU. Interactive frames use half the ray samples and 1.6× image subsampling, then a full-quality frame follows when the drag ends.
 
 ## Application start
 

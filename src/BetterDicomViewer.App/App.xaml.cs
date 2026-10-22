@@ -12,8 +12,28 @@ public partial class App : Application
     {
         base.OnStartup(e);
         DispatcherUnhandledException += OnUnhandled;
+        if (GpuPreference.EnsureDefault() && Environment.GetEnvironmentVariable("BDV_RESTARTED") is null)
+        {
+            // The graphics preference only applies to new processes, so restart once before any window appears.
+            var psi = new System.Diagnostics.ProcessStartInfo(GpuPreference.ExePath) { UseShellExecute = false };
+            foreach (var a in e.Args) psi.ArgumentList.Add(a);
+            psi.Environment["BDV_RESTARTED"] = "1";
+            System.Diagnostics.Process? child = null;
+            try
+            {
+                child = System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception)
+            {
+            }
+            if (child is not null)
+            {
+                await child.WaitForExitAsync();
+                Shutdown(child.ExitCode);
+                return;
+            }
+        }
         DicomRuntime.EnsureInitialized();
-        GpuPreference.EnsureDefault();
 
         var window = new MainWindow();
         MainWindow = window;

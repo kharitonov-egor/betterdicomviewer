@@ -20,7 +20,7 @@ Requirements: Windows 10 1809 or later (Windows 11 recommended), 64-bit, 8 GB RA
 
 The package is self-contained: it includes the .NET runtime, the VTK imaging bridge (`bdv_vtk.dll`) and the DICOM codecs. The app never contacts the network.
 
-On laptops with two GPUs, the app sets the Windows per-app graphics preference to the high-performance GPU on first start, unless you have already chosen one. 3D rendering on the test laptop dropped from 169 ms to 10 ms per frame with that change. The 3D panel shows the active GPU and has a checkbox to switch, and **Settings › System › Display › Graphics** shows the same setting.
+On laptops with two GPUs, the app sets the Windows per-app graphics preference to the high-performance GPU on first start, unless you have already chosen one. Windows applies that preference only to processes started after it changes, so the first launch restarts itself once before showing a window. 3D rendering on the test laptop dropped from 169 ms to 10 ms per frame with that change. The 3D panel shows the active GPU and has a checkbox to switch, and **Settings › System › Display › Graphics** shows the same setting.
 
 ## Build from source
 

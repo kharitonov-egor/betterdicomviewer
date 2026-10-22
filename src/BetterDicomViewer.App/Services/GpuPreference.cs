@@ -21,16 +21,21 @@ public static class GpuPreference
 
     public static bool IsHighPerformance => Current()?.Contains("GpuPreference=2", StringComparison.OrdinalIgnoreCase) == true;
 
-    /// <summary>Requests the high-performance GPU for this executable unless the user already chose a preference.</summary>
-    public static void EnsureDefault()
+    /// <summary>
+    /// Requests the high-performance GPU for this executable unless the user already chose a preference.
+    /// Returns true when the preference was written now; Windows applies it to processes started afterwards.
+    /// </summary>
+    public static bool EnsureDefault()
     {
         try
         {
-            if (string.IsNullOrEmpty(ExePath) || Current() is not null) return;
+            if (string.IsNullOrEmpty(ExePath) || Current() is not null) return false;
             Set(highPerformance: true);
+            return true;
         }
         catch (Exception)
         {
+            return false;
         }
     }
 
