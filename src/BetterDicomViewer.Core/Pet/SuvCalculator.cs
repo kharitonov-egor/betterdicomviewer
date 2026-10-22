@@ -185,9 +185,9 @@ public static class SuvCalculator
 
         if (decay == "START")
         {
-            var series = DicomDateTime.Combine(first.SeriesDate, first.SeriesTime);
+            var series = DicomDates.Combine(first.SeriesDate, first.SeriesTime);
             var acquisitions = slices
-                .Select(s => DicomDateTime.ParseDateTime(s.AcquisitionDateTime) ?? DicomDateTime.Combine(s.AcquisitionDate ?? s.SeriesDate, s.AcquisitionTime))
+                .Select(s => DicomDates.ParseDateTime(s.AcquisitionDateTime) ?? DicomDates.Combine(s.AcquisitionDate ?? s.SeriesDate, s.AcquisitionTime))
                 .Where(t => t is not null)
                 .Select(t => t!.Value)
                 .ToList();
@@ -248,7 +248,7 @@ public static class SuvCalculator
         for (var i = 0; i < slices.Count; i++)
         {
             var s = slices[i];
-            var acq = DicomDateTime.ParseDateTime(s.AcquisitionDateTime) ?? DicomDateTime.Combine(s.AcquisitionDate ?? s.SeriesDate, s.AcquisitionTime);
+            var acq = DicomDates.ParseDateTime(s.AcquisitionDateTime) ?? DicomDates.Combine(s.AcquisitionDate ?? s.SeriesDate, s.AcquisitionTime);
             if (acq is null)
             {
                 info.Problems.Add("Decay correction is NONE and a slice lacks Acquisition Time, so per-slice decay cannot be applied.");
@@ -278,7 +278,7 @@ public static class SuvCalculator
         foreach (var s in slices)
         {
             if (s.Pet?.DecayFactor is not > 0 || s.Pet.ActualFrameDurationMs is not > 0) continue;
-            var acq = DicomDateTime.ParseDateTime(s.AcquisitionDateTime) ?? DicomDateTime.Combine(s.AcquisitionDate ?? s.SeriesDate, s.AcquisitionTime);
+            var acq = DicomDates.ParseDateTime(s.AcquisitionDateTime) ?? DicomDates.Combine(s.AcquisitionDate ?? s.SeriesDate, s.AcquisitionTime);
             if (acq is null) continue;
             origin ??= acq;
             var ta = (acq.Value - origin.Value).TotalSeconds;
@@ -318,9 +318,9 @@ public static class SuvCalculator
     private static DateTime? InjectionTime(InstanceInfo first)
     {
         var pet = first.Pet!;
-        if (DicomDateTime.ParseDateTime(pet.RadiopharmaceuticalStartDateTime) is { } dt) return dt;
+        if (DicomDates.ParseDateTime(pet.RadiopharmaceuticalStartDateTime) is { } dt) return dt;
         var date = first.SeriesDate ?? first.StudyDate ?? first.AcquisitionDate;
-        return DicomDateTime.Combine(date, pet.RadiopharmaceuticalStartTime);
+        return DicomDates.Combine(date, pet.RadiopharmaceuticalStartTime);
     }
 
     private static void AddLeanBodyMass(SuvInfo info, InstanceInfo first)

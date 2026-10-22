@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace BetterDicomViewer.Core.Dicom;
 
-public static class DicomDateTime
+public static class DicomDates
 {
     public static DateOnly? ParseDate(string? da)
     {
