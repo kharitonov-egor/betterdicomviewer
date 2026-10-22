@@ -30,7 +30,7 @@ public sealed class DeidentifyWindow : Window
     private readonly Button _open = new() { Content = "Open folder", Padding = new Thickness(12, 5, 12, 5), Visibility = Visibility.Collapsed, Margin = new Thickness(8, 0, 0, 0) };
     private CancellationTokenSource? _cts;
 
-    public DeidentifyWindow(MainWindow main)
+    public DeidentifyWindow(MainWindow main, string? outputFolder = null)
     {
         _main = main;
         Title = "Export de-identified copy";
@@ -57,9 +57,9 @@ public sealed class DeidentifyWindow : Window
         _burnedIn.Items.Add("Exclude images that may contain burned-in text (safest)");
         _burnedIn.Items.Add("Export them unchanged and list them in the report");
         _burnedIn.Items.Add("Black out the redaction rectangles I drew, then export");
-        _burnedIn.SelectedIndex = 0;
+        _burnedIn.SelectedIndex = main.Redactions.Any(r => r.Value.Count > 0) ? 2 : 0;
         _patientChars.IsChecked = main.InstancesForScope(1).Any(i => i.Modality == "PT");
-        _folder.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "De-identified DICOM", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
+        _folder.Text = outputFolder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "De-identified DICOM", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
 
         var panel = new StackPanel { Margin = new Thickness(18) };
         panel.Children.Add(new TextBlock

@@ -182,4 +182,88 @@ public class SeriesAndDecodeTests
         Assert.InRange(rgb[1], 0, 4);
         Assert.InRange(rgb[2], 0, 4);
     }
+    [Fact]
+    public async Task EnhancedMultiFrameUsesPerFrameGeometry()
+    {
+        using var tmp = new TempDir();
+        var o = new SeriesOptions { Slices = 9, Columns = 20, Rows = 24, SliceSpacing = 2, Value = Hu, RowDirection = new Vec3(1, 0, 0), ColumnDirection = new Vec3(0, 0.6, -0.8) };
+        SyntheticDicom.WriteEnhanced(tmp.Path, o);
+        var set = Assert.Single(await AnalyzeFolder(tmp.Path));
+        Assert.True(set.IsVolume);
+        Assert.Equal(9, set.Geometry!.Nz);
+        Assert.Equal(2, set.Geometry.Spacing.Z, 6);
+        using var volume = VolumeLoader.Start(set, 0);
+        await volume.Completion;
+        Assert.Null(volume.LoadError);
+        for (var k = 0; k < 9; k += 4)
+        {
+            var p = SyntheticDicom.PatientPoint(o, 5, 7, k);
+            Assert.True(Vec3.Distance(set.Geometry.IndexToPatient.TransformPoint(new Vec3(5, 7, k)), p) < 1e-6);
+            Assert.Equal(Hu(p), volume.Data.GetValue(5, 7, k));
+        }
+    }
+
+    [Fact]
+    public async Task VideoTransferSyntaxIsReportedNotSkipped()
+    {
+        using var tmp = new TempDir();
+        var syntax = DicomTransferSyntax.Lookup(DicomUID.MPEG2MPML);
+        var ds = new DicomDataset(syntax)
+        {
+            { DicomTag.SOPClassUID, DicomUID.VideoEndoscopicImageStorage },
+            { DicomTag.SOPInstanceUID, DicomUIDGenerator.GenerateDerivedFromUUID() },
+            { DicomTag.StudyInstanceUID, "1.2.3.9" },
+            { DicomTag.SeriesInstanceUID, "1.2.3.9.1" },
+            { DicomTag.Modality, "ES" },
+            { DicomTag.Rows, (ushort)16 },
+            { DicomTag.Columns, (ushort)16 },
+            { DicomTag.SamplesPerPixel, (ushort)3 },
+            { DicomTag.BitsAllocated, (ushort)8 },
+            { DicomTag.BitsStored, (ushort)8 },
+            { DicomTag.HighBit, (ushort)7 },
+            { DicomTag.PhotometricInterpretation, "YBR_PARTIAL_420" },
+        };
+        var fragments = new DicomOtherByteFragment(DicomTag.PixelData);
+        fragments.Fragments.Add(new FellowOakDicom.IO.Buffer.MemoryByteBuffer(new byte[64]));
+        ds.Add(fragments);
+        var file = new DicomFile(ds);
+        await file.SaveAsync(Path.Combine(tmp.Path, "VIDEO1"));
+
+        var lib = new DicomLibrary();
+        await LibraryScanner.ScanAsync(lib, tmp.Path, null, new ScanOptions { UseCache = false }, TestContext.Current.CancellationToken);
+        var series = lib.Snapshot().Single().Series.Single();
+        Assert.False(series.IsDisplayable);
+        Assert.Contains("Unsupported transfer syntax", series.UnsupportedReason);
+        Assert.Contains("MPEG2", series.UnsupportedReason);
+    }
+
+    [Fact]
+    public async Task MrSeriesLoadsWithoutHounsfieldAssumptions()
+    {
+        using var tmp = new TempDir();
+        SyntheticDicom.WriteSeries(tmp.Path, new SeriesOptions { Modality = "MR", Slices = 6, RescaleIntercept = 0, Value = p => 500 + p.X });
+        var set = Assert.Single(await AnalyzeFolder(tmp.Path));
+        Assert.Equal("MR", set.Modality);
+        using var volume = VolumeLoader.Start(set, 0);
+        await volume.Completion;
+        Assert.Equal("", volume.ValueUnit);
+        Assert.Equal(VoxelType.Int16, volume.Data.Type);
+        var (lo, hi) = volume.ValueRange;
+        Assert.True(lo > 400 && hi < 600);
+    }
+
+    [Fact]
+    public void PyramidLevelsKeepWorldAlignment()
+    {
+        using var full = new VoxelBuffer(8, 8, 1, 1, VoxelType.UInt16);
+        var span = full.SliceSpan<ushort>(0);
+        for (var i = 0; i < 64; i++) span[i] = (ushort)(i % 8 * 10);
+        using var half = ImagePyramid.Downsample(full);
+        Assert.Equal((4, 4), (half.Nx, half.Ny));
+        Assert.Equal(5, half.GetValue(0, 0, 0));
+        var i2w = new Affine(1, 0, 0, 0, 1.5, 0, 0, 0, 1, 0, 0, 0);
+        var level = ImagePyramid.LevelToWorld(i2w, 1);
+        Assert.Equal(new Vec3(0.5, 0.75, 0), level.TransformPoint(Vec3.Zero));
+        Assert.Equal(new Vec3(2.5, 3.75, 0), level.TransformPoint(new Vec3(1, 1, 0)));
+    }
 }

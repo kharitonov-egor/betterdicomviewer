@@ -365,7 +365,7 @@ public partial class MainWindow
         vc.RequestRender();
         OnViewChanged(vc, ViewChange.Content);
         RefreshInspector();
-        CaptureLinkOffsets();
+        InitializeLinkOffsets();
         vc.Focus();
         return true;
     }

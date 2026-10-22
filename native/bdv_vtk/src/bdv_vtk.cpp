@@ -37,6 +37,7 @@
 #include <vtkWindowedSincPolyDataFilter.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <mutex>
@@ -342,27 +343,39 @@ BDV_API int bdv_reslice(void* reslicerPtr, const void* data, int nx, int ny, int
     }
 
     const bool slab = slabSlices > 1 && slabMode > 0;
+    double m[16];
+    for (int i = 0; i < 16; ++i)
+    {
+      // Round-off from the caller's geometry (around 1e-17) would keep VTK off its axis-aligned fast path.
+      m[i] = std::abs(axesRowMajor16[i]) < 1e-10 ? 0.0 : axesRowMajor16[i];
+    }
+    bool permutation = true;
+    for (int col = 0; col < 3 && permutation; ++col)
+    {
+      int nonZero = 0;
+      for (int row = 0; row < 3; ++row)
+      {
+        nonZero += m[row * 4 + col] != 0.0 ? 1 : 0;
+      }
+      permutation = nonZero == 1;
+    }
+    // VTK 9.7's axis-aligned fast path centres slab samples at -0.5*n steps instead of -0.5*(n-1), half a step
+    // off the plane. The general path is correct, so compensate only when the fast path will be taken.
+    if (slab && permutation)
+    {
+      for (int row = 0; row < 3; ++row)
+      {
+        m[row * 4 + 3] += 0.5 * m[row * 4 + 2];
+      }
+    }
     for (int row = 0; row < 4; ++row)
     {
       for (int col = 0; col < 4; ++col)
       {
-        r->axes->SetElement(row, col, axesRowMajor16[row * 4 + col]);
+        r->axes->SetElement(row, col, m[row * 4 + col]);
       }
     }
-    // VTK 9.7's axis-aligned fast path centres slabs at -0.5*n samples instead of -0.5*(n-1), shifting them by half a
-    // sample. A spacing fraction other than 1.0 forces the general path; doubling the z axis keeps sample positions.
-    if (slab)
-    {
-      for (int row = 0; row < 3; ++row)
-      {
-        r->axes->SetElement(row, 2, 2.0 * axesRowMajor16[row * 4 + 2]);
-      }
-      r->reslice->SetSlabSliceSpacingFraction(0.5);
-    }
-    else
-    {
-      r->reslice->SetSlabSliceSpacingFraction(1.0);
-    }
+    r->reslice->SetSlabSliceSpacingFraction(1.0);
 
     auto* reslice = r->reslice.GetPointer();
     reslice->SetInputData(r->input.image);
@@ -515,6 +528,8 @@ BDV_API int bdv_vr_set_transfer(void* vrPtr, const double* colorPoints, int colo
       vr->property->DisableGradientOpacityOn();
     }
 
+    // Jittering reduces wood-grain artefacts in composite rendering but leaves speckles in projections.
+    vr->mapper->SetUseJittering(blendMode == 0 ? 1 : 0);
     switch (blendMode)
     {
       case 1:

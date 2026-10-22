@@ -113,4 +113,33 @@ public class ResliceTests
         Assert.Equal(10 + 9 + 2, output[27], 2);
         Assert.Equal(1, normalSign);
     }
+    [Fact]
+    public async Task ObliqueSlabIsCentredOnThePlane()
+    {
+        using var tmp = new TempDir();
+        var o = new SeriesOptions { Columns = 40, Rows = 40, Slices = 40, SliceSpacing = 1, ColumnSpacing = 1, RowSpacing = 1, Origin = new Vec3(-20, -20, -20) };
+        o.Modality = "PT";
+        o.PerSliceSlope = true;
+        o.Signed = true;
+        o.BitsStored = 16;
+        o.Value = p => 100 + p.Z;
+        SyntheticDicom.WriteSeries(tmp.Path, o);
+        var set = Assert.Single(await SeriesAndDecodeTests.AnalyzeFolder(tmp.Path));
+        using var volume = VolumeLoader.Start(set, 0);
+        await volume.Completion;
+
+        var view = new SliceView { Width = 9, Height = 9, Scale = 0.5, Center = Vec3.Zero };
+        view.SetPlane(new Vec3(1, 0, 0), new Vec3(0, 0.8, -0.6));
+        var nz = Math.Abs(view.Normal.Z);
+        using var reslicer = new Reslicer();
+        var output = new float[81];
+        unsafe
+        {
+            fixed (float* p = output)
+                reslicer.Reslice(volume.Data, view.ResliceAxes(volume.WorldToIndex, 1.0), 9, 9, Interpolation.Linear, (int)SlabMode.Max, 5, 0, p, VoxelType.Float32);
+        }
+        // Centre pixel: plane passes through z = f(centre) with samples at -2..+2 mm along the normal.
+        var centre = view.ScreenToWorld(4.5, 4.5);
+        Assert.Equal(100 + centre.Z + 2 * nz, output[40], 2);
+    }
 }

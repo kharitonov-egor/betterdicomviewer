@@ -172,6 +172,128 @@ public sealed class ScriptRunner(MainWindow window)
                 vc.PointerWheel(Frac(vc, parts2[1], parts2[2]), (int)(120 * double.Parse(parts2[3], CultureInfo.InvariantCulture)), mods);
                 break;
             }
+            case "export-screenshot":
+                window.SaveScreenshotTo(arg, allViewports: true, includeOverlay: true, hidePatient: true);
+                break;
+            case "export-measurements":
+                window.ExportMeasurementsTo(arg);
+                break;
+            case "export-surface":
+                if (window.ActiveViewport?.Model is { Labels: { } map } && map.Segments.FirstOrDefault(x => x.Label == map.ActiveLabel) is { } seg)
+                    Imaging.SurfaceExporter.Export(map.Labels, map.IndexToPatient, seg.Label, arg, obj: false);
+                break;
+            case "deid-export":
+            {
+                // deid-export <outFolder> <exclude|flag|redact>
+                var parts3 = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var options = new Core.Deidentification.DeidentificationOptions
+                {
+                    BurnedIn = parts3.Length > 1 && parts3[1] == "redact" ? Core.Deidentification.BurnedInPolicy.Redact
+                        : parts3.Length > 1 && parts3[1] == "flag" ? Core.Deidentification.BurnedInPolicy.IncludeAndFlag
+                        : Core.Deidentification.BurnedInPolicy.Exclude,
+                    RetainPatientCharacteristics = true,
+                    Redactions = window.Redactions.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()),
+                };
+                var report = await Core.Deidentification.DeidentificationExporter.ExportAsync(window.InstancesForScope(1), window.SourceRoots, parts3[0], options, null, CancellationToken.None);
+                window.ShowStatus($"De-identified export: {report.Exported} exported, {report.Redacted} redacted, {report.ExcludedBurnedIn} excluded.");
+                break;
+            }
+            case "drag-handle":
+            {
+                // drag-handle <viewport> <targetViewport> <degrees>: rotates the target plane with the crosshair handle
+                var parts4 = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var vc = window.Viewports[int.Parse(parts4[0], CultureInfo.InvariantCulture)];
+                var target = window.Viewports[int.Parse(parts4[1], CultureInfo.InvariantCulture)];
+                var degrees = double.Parse(parts4[2], CultureInfo.InvariantCulture);
+                var (handle, pivot) = vc.RotationHandleFor(target);
+                if (handle is not { } h) break;
+                var radius = (h - pivot).Length;
+                var start = Math.Atan2(h.Y - pivot.Y, h.X - pivot.X);
+                vc.PointerDown(h, MouseButton.Left, ModifierKeys.None);
+                for (var i = 1; i <= 12; i++)
+                {
+                    var angle = start + degrees * Math.PI / 180 * i / 12;
+                    vc.PointerMove(new Point(pivot.X + radius * Math.Cos(angle), pivot.Y + radius * Math.Sin(angle)));
+                    await Idle();
+                }
+                vc.PointerUp(new Point(pivot.X + radius * Math.Cos(start + degrees * Math.PI / 180), pivot.Y + radius * Math.Sin(start + degrees * Math.PI / 180)), MouseButton.Left);
+                break;
+            }
+            case "vr-preset":
+                if (window.ActiveViewport is { } vp)
+                {
+                    vp.Model.Vr.Mode = VrMode.Preset;
+                    vp.Model.Vr.PresetName = arg;
+                    vp.RequestRender();
+                }
+                break;
+            case "vr-mode":
+                if (window.ActiveViewport is { } vm)
+                {
+                    vm.Model.Vr.Mode = Enum.Parse<VrMode>(arg, ignoreCase: true);
+                    vm.RequestRender();
+                }
+                break;
+            case "vr-orbit":
+                if (window.ActiveViewport is { } vo)
+                {
+                    var d = arg.Split(' ').Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray();
+                    vo.Model.Vr.Orbit(d[0], d[1]);
+                    if (d.Length > 2) vo.Model.Vr.Zoom = d[2];
+                    vo.RequestRender();
+                }
+                break;
+            case "seg-range":
+            {
+                var r = arg.Split(' ').Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray();
+                window.Segmentation.ThresholdLow = r[0];
+                window.Segmentation.ThresholdHigh = r[1];
+                break;
+            }
+            case "seg-new":
+                if (window.ActiveViewport?.Model is { Volume: { } segVolume } segModel)
+                {
+                    segModel.Labels ??= window.Images.GetOrCreateLabels(segVolume);
+                    var newSeg = segModel.Labels.Segments.FirstOrDefault(x => x.Name == arg) ?? segModel.Labels.AddSegment(arg);
+                    segModel.Labels.ActiveLabel = newSeg.Label;
+                    segModel.ShowLabels = true;
+                    window.OnSegmentationChanged(window.ActiveViewport!);
+                }
+                break;
+            case "grow":
+                if (window.ActiveViewport is { Model: { Volume: { } gv, Labels: { } gmap } } gvc)
+                {
+                    var xyz = arg.Split(' ').Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray();
+                    var edit = gmap.RegionGrow(new Vec3(xyz[0], xyz[1], xyz[2]), window.Segmentation.ThresholdLow, window.Segmentation.ThresholdHigh, gv.Data, gmap.ActiveLabel, 5_000_000, null, out _);
+                    window.ShowStatus(edit is null ? "Seed outside range." : $"Region grow added {edit.Count} voxels.");
+                    window.OnSegmentationChanged(gvc);
+                }
+                break;
+            case "dump-shortcuts":
+            {
+                var sb = new System.Text.StringBuilder();
+                var registry = GetRegistry();
+                foreach (var group in registry.All.Where(c => c.Shortcuts.Count > 0).GroupBy(c => c.Category))
+                {
+                    sb.AppendLine($"**{group.Key}**").AppendLine();
+                    sb.AppendLine("| Keys | Action |").AppendLine("| --- | --- |");
+                    foreach (var c in group) sb.AppendLine($"| {string.Join(", ", c.Shortcuts.Select(k => "`" + k + "`"))} | {c.Title} |");
+                    sb.AppendLine();
+                }
+                foreach (var group in registry.Hints.GroupBy(h => h.Category))
+                {
+                    sb.AppendLine($"**{group.Key}**").AppendLine();
+                    sb.AppendLine("| Gesture | Action |").AppendLine("| --- | --- |");
+                    foreach (var h in group) sb.AppendLine($"| {h.Gesture} | {h.Action} |");
+                    sb.AppendLine();
+                }
+                File.WriteAllText(arg, sb.ToString());
+                break;
+            }
+            case "clear-local-state":
+                foreach (var dir in new[] { Core.AppPaths.AnnotationsDir, Core.AppPaths.SegmentationsDir })
+                    foreach (var f in Directory.EnumerateFiles(dir)) File.Delete(f);
+                break;
             case "annotate-demo":
                 AddDemoAnnotations();
                 break;
@@ -184,7 +306,7 @@ public sealed class ScriptRunner(MainWindow window)
                 new Dialogs.ShortcutsWindow(GetRegistry()) { Owner = window }.Show();
                 break;
             case "deid":
-                new Dialogs.DeidentifyWindow(window) { Owner = window }.Show();
+                new Dialogs.DeidentifyWindow(window, string.IsNullOrWhiteSpace(arg) ? null : arg) { Owner = window }.Show();
                 break;
             case "screenshot-dialog":
             {

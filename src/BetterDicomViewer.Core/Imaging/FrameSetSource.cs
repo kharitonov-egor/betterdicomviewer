@@ -11,6 +11,7 @@ public sealed class FrameSetSource : IDisposable
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<int, VoxelBuffer> _frames = [];
+    private readonly Dictionary<int, List<VoxelBuffer>> _levels = [];
     private readonly LinkedList<int> _lru = new();
     private readonly Dictionary<int, int> _pins = [];
     private readonly Dictionary<int, Task<VoxelBuffer?>> _pending = [];
@@ -81,6 +82,22 @@ public sealed class FrameSetSource : IDisposable
         }
     }
 
+    /// <summary>
+    /// The pyramid level best suited to <paramref name="sourcePixelsPerScreenPixel"/>, with its index-to-world transform.
+    /// Falls back to full resolution. The level shares the frame's pin.
+    /// </summary>
+    public (VoxelBuffer Buffer, Affine IndexToWorld)? TryGetForScale(int k, double sourcePixelsPerScreenPixel)
+    {
+        var full = TryGet(k);
+        if (full is null) return null;
+        lock (_gate)
+        {
+            if (sourcePixelsPerScreenPixel < 2 || !_levels.TryGetValue(k, out var levels)) return (full, IndexToWorld);
+            var level = Math.Min(levels.Count, (int)Math.Floor(Math.Log2(sourcePixelsPerScreenPixel)));
+            return level <= 0 ? (full, IndexToWorld) : (levels[level - 1], ImagePyramid.LevelToWorld(IndexToWorld, level));
+        }
+    }
+
     public void Prefetch(int center, int radius)
     {
         for (var d = 1; d <= radius; d++)
@@ -143,6 +160,13 @@ public sealed class FrameSetSource : IDisposable
             var buffer = new VoxelBuffer(raw.Columns, raw.Rows, 1, Components, Type);
             VolumeLoader.WriteFrame(buffer, 0, raw, VolumeLoader.Rescale(frame));
             buffer.MarkModified();
+            var levels = new List<VoxelBuffer>();
+            var current = buffer;
+            while (Math.Max(current.Nx, current.Ny) >= ImagePyramid.MinDimensionForPyramid)
+            {
+                current = ImagePyramid.Downsample(current);
+                levels.Add(current);
+            }
             lock (_gate)
             {
                 _pending.Remove(k);
@@ -153,6 +177,11 @@ public sealed class FrameSetSource : IDisposable
                 }
                 _frames[k] = buffer;
                 _bytes += buffer.ByteLength;
+                if (levels.Count > 0)
+                {
+                    _levels[k] = levels;
+                    _bytes += levels.Sum(l => l.ByteLength);
+                }
                 Touch(k);
                 Evict();
             }
@@ -189,6 +218,14 @@ public sealed class FrameSetSource : IDisposable
                 _bytes -= buffer.ByteLength;
                 _lru.Remove(node);
                 buffer.Dispose();
+                if (_levels.Remove(k, out var levels))
+                {
+                    foreach (var l in levels)
+                    {
+                        _bytes -= l.ByteLength;
+                        l.Dispose();
+                    }
+                }
             }
             node = prev;
         }
@@ -209,7 +246,9 @@ public sealed class FrameSetSource : IDisposable
         {
             _disposed = true;
             foreach (var b in _frames.Values) b.Dispose();
+            foreach (var l in _levels.Values.SelectMany(x => x)) l.Dispose();
             _frames.Clear();
+            _levels.Clear();
             _lru.Clear();
             _datasets.Clear();
             _bytes = 0;

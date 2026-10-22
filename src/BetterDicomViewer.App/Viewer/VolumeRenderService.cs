@@ -18,7 +18,7 @@ public sealed class VrRequest
     public LabelMap? Labels { get; init; }
 }
 
-public sealed record VrFrame(uint[] Pixels, int Width, int Height, double Milliseconds, string? Error, string RendererInfo);
+public sealed record VrFrame(uint[] Pixels, int Width, int Height, double Milliseconds, string? Error, string RendererInfo, bool NeedsRefresh = false);
 
 /// <summary>
 /// Runs one VTK offscreen renderer on a dedicated thread. Requests coalesce, so a burst of camera changes renders
@@ -36,6 +36,9 @@ public sealed class VolumeRenderService : IDisposable
     private VolumeRenderer? _renderer;
     private ImageVolume? _uploaded;
     private long _uploadedVersion = -1;
+    private long _labelsVersion = -1;
+    private object? _labelsRef;
+    private DateTime _labelsExtracted = DateTime.MinValue;
 
     public VolumeRenderService()
     {
@@ -124,8 +127,17 @@ public sealed class VolumeRenderService : IDisposable
             if (whiteBackground) _renderer.SetBackground(1, 1, 1);
             else _renderer.SetBackground(0.035, 0.035, 0.04);
 
-            if (r.Labels is { } labels && s.ShowLabels && labels.Segments.Any(x => x.Visible))
+            // Surface extraction is expensive for large segments: skip it during drags and at most every 750 ms.
+            var labelsChanged = r.Labels is not null && (!ReferenceEquals(_labelsRef, r.Labels) || _labelsVersion != r.Labels.Labels.Version);
+            var deferLabels = labelsChanged && ReferenceEquals(_labelsRef, r.Labels) && (r.Interactive || (DateTime.UtcNow - _labelsExtracted).TotalMilliseconds < 750);
+            if (deferLabels)
             {
+            }
+            else if (r.Labels is { } labels && s.ShowLabels && labels.Segments.Any(x => x.Visible))
+            {
+                _labelsRef = labels;
+                _labelsVersion = labels.Labels.Version;
+                _labelsExtracted = DateTime.UtcNow;
                 var colors = new List<(double, double, double, double)>();
                 for (var label = 1; label <= labels.Segments.Max(x => x.Label); label++)
                 {
@@ -137,12 +149,14 @@ public sealed class VolumeRenderService : IDisposable
             }
             else
             {
+                _labelsRef = null;
+                _labelsVersion = -1;
                 _renderer.SetLabels(null, Affine.Identity, [], 0);
             }
 
             var pixels = new uint[w * h];
             _renderer.Render(w, h, r.Interactive, pixels);
-            return new VrFrame(pixels, w, h, sw.Elapsed.TotalMilliseconds, null, _renderer.RendererInfo);
+            return new VrFrame(pixels, w, h, sw.Elapsed.TotalMilliseconds, null, _renderer.RendererInfo, deferLabels);
         }
         catch (Exception ex)
         {

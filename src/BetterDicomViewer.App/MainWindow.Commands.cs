@@ -249,7 +249,9 @@ public partial class MainWindow
     {
         _link = !_link;
         if (_linkButton is not null) _linkButton.IsChecked = _link;
-        SetStatus(_link ? "Linked: scrolling moves parallel views in the same patient space; other studies follow the same offset." : "Viewports scroll independently.");
+        SetStatus(_link
+            ? "Linked. Views of other studies keep their current alignment, so scroll them to matching anatomy with linking off, then turn it back on (Ctrl+L)."
+            : "Viewports scroll independently. Align the studies, then press Ctrl+L to link them at this offset.");
         if (_link) CaptureLinkOffsets();
     }
 

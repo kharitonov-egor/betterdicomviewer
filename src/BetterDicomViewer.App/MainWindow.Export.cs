@@ -71,13 +71,18 @@ public partial class MainWindow
             FileName = $"screenshot-{DateTime.Now:yyyyMMdd-HHmmss}.png",
         };
         if (dlg.ShowDialog(this) != true) return;
-        var image = CaptureViewports(options.AllViewports, options.IncludeOverlay, options.HidePatient);
-        BitmapEncoder encoder = dlg.FilterIndex == 2 || dlg.FileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+        SaveScreenshotTo(dlg.FileName, options.AllViewports, options.IncludeOverlay, options.HidePatient);
+    }
+
+    public void SaveScreenshotTo(string path, bool allViewports, bool includeOverlay, bool hidePatient)
+    {
+        var image = CaptureViewports(allViewports, includeOverlay, hidePatient);
+        BitmapEncoder encoder = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
             ? new JpegBitmapEncoder { QualityLevel = 95 }
             : new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(image));
-        using (var fs = File.Create(dlg.FileName)) encoder.Save(fs);
-        SetStatus($"Screenshot saved to {dlg.FileName}{(options.HidePatient ? " (patient details hidden)" : "")}.");
+        using (var fs = File.Create(path)) encoder.Save(fs);
+        SetStatus($"Screenshot saved to {path}{(hidePatient ? " (patient details hidden)" : "")}.");
     }
 
     private void CopyViewportImage()
@@ -108,10 +113,17 @@ public partial class MainWindow
             FileName = $"measurements-{DateTime.Now:yyyyMMdd-HHmmss}{(csv ? ".csv" : ".json")}",
         };
         if (dlg.ShowDialog(this) != true) return;
-        var rows = annotations.Select(BuildRow).ToList();
-        if (dlg.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) MeasurementExport.WriteJson(dlg.FileName, rows);
-        else MeasurementExport.WriteCsv(dlg.FileName, rows);
-        SetStatus($"Exported {rows.Count} measurement(s) to {dlg.FileName}.");
+        ExportMeasurementsTo(dlg.FileName);
+    }
+
+    public void ExportMeasurementsTo(string path)
+    {
+        var study = _active?.Model.Set?.Series.StudyInstanceUid;
+        if (study is null) return;
+        var rows = Annotations.ForStudy(study).Select(BuildRow).ToList();
+        if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) MeasurementExport.WriteJson(path, rows);
+        else MeasurementExport.WriteCsv(path, rows);
+        SetStatus($"Exported {rows.Count} measurement(s) to {path}.");
     }
 
     private MeasurementRow BuildRow(Annotation a)

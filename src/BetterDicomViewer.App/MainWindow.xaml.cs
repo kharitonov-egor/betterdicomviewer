@@ -128,9 +128,15 @@ public partial class MainWindow : Window, IViewerHost
 
     public void OnSegmentationChanged(ViewportControl source)
     {
-        foreach (var v in _visible)
-            if (v.Model.Labels is not null && ReferenceEquals(v.Model.Labels, source.Model.Labels) || ReferenceEquals(v, source))
-                v.RequestRender();
+        foreach (var v in _pool)
+        {
+            if (source.Model.Labels is { } labels && ReferenceEquals(v.Model.Volume, source.Model.Volume) && v.Model.Volume is not null)
+            {
+                v.Model.Labels = labels;
+                v.Model.ShowLabels = true;
+            }
+            if (ReferenceEquals(v.Model.Labels, source.Model.Labels) || ReferenceEquals(v, source)) v.RequestRender();
+        }
         ScheduleSegmentationSave();
         RefreshSegmentList();
     }

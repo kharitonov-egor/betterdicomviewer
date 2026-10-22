@@ -381,8 +381,11 @@ public sealed partial class ViewportControl
         return _host.Annotations.ForStudy(Model.Set.Series.StudyInstanceUid).Where(IsVisibleHere);
     }
 
+    private readonly List<Rect> _labelRects = [];
+
     private void DrawAnnotations(DrawingContext dc, bool forExport)
     {
+        _labelRects.Clear();
         foreach (var a in VisibleAnnotations()) DrawAnnotation(dc, a, ReferenceEquals(_host.SelectedAnnotation, a) || _host.SelectedAnnotation?.Id == a.Id, draft: false, forExport);
         if (_draft is not null && !forExport) DrawAnnotation(dc, _draft, false, draft: true, forExport);
     }
@@ -501,6 +504,15 @@ public sealed partial class ViewportControl
         var height = texts.Sum(t => t.Height) + 8;
         var x = Math.Min(at.X, ActualWidth - width - 4);
         var y = Math.Min(Math.Max(at.Y, 4), ActualHeight - height - 4);
+        // Keep result boxes from covering each other: move down past any overlapping box.
+        for (var guard = 0; guard < 20; guard++)
+        {
+            var candidate = new Rect(x, y, width, height);
+            var hit = _labelRects.FirstOrDefault(r => r.IntersectsWith(candidate));
+            if (hit == default) break;
+            y = hit.Bottom + 4;
+        }
+        _labelRects.Add(new Rect(x, y, width, height));
         dc.DrawRoundedRectangle(LabelBackground, null, new Rect(x, y, width, height), 4, 4);
         var cy = y + 4;
         foreach (var t in texts)

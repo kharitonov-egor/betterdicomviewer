@@ -201,6 +201,81 @@ public static class SyntheticDicom
         return v.ToString("G6", CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Writes one Enhanced CT object whose frames carry per-frame Plane Position and shared Plane Orientation and
+    /// Pixel Measures functional groups. Frames are stored in reverse spatial order to check sorting.
+    /// </summary>
+    public static string WriteEnhanced(string directory, SeriesOptions o)
+    {
+        DicomRuntime.EnsureInitialized();
+        Directory.CreateDirectory(directory);
+        var ds = new DicomDataset(DicomTransferSyntax.ExplicitVRLittleEndian)
+        {
+            { DicomTag.SOPClassUID, DicomUID.EnhancedCTImageStorage },
+            { DicomTag.SOPInstanceUID, DicomUIDGenerator.GenerateDerivedFromUUID() },
+            { DicomTag.StudyInstanceUID, o.StudyInstanceUid },
+            { DicomTag.SeriesInstanceUID, o.SeriesInstanceUid },
+            { DicomTag.FrameOfReferenceUID, o.FrameOfReferenceUid },
+            { DicomTag.PatientName, o.PatientName },
+            { DicomTag.PatientID, o.PatientId },
+            { DicomTag.Modality, "CT" },
+            { DicomTag.SeriesNumber, o.SeriesNumber.ToString(CultureInfo.InvariantCulture) },
+            { DicomTag.InstanceNumber, "1" },
+            { DicomTag.ImageType, "ORIGINAL", "PRIMARY", "VOLUME", "NONE" },
+            { DicomTag.SamplesPerPixel, (ushort)1 },
+            { DicomTag.PhotometricInterpretation, PhotometricInterpretation.Monochrome2.Value },
+            { DicomTag.Rows, (ushort)o.Rows },
+            { DicomTag.Columns, (ushort)o.Columns },
+            { DicomTag.BitsAllocated, (ushort)16 },
+            { DicomTag.BitsStored, (ushort)16 },
+            { DicomTag.HighBit, (ushort)15 },
+            { DicomTag.PixelRepresentation, (ushort)1 },
+            { DicomTag.NumberOfFrames, o.Slices.ToString(CultureInfo.InvariantCulture) },
+        };
+        var shared = new DicomDataset();
+        shared.Add(new DicomSequence(DicomTag.PlaneOrientationSequence, new DicomDataset
+        {
+            { DicomTag.ImageOrientationPatient, Ds(o.RowDirection.X), Ds(o.RowDirection.Y), Ds(o.RowDirection.Z), Ds(o.ColumnDirection.X), Ds(o.ColumnDirection.Y), Ds(o.ColumnDirection.Z) },
+        }));
+        shared.Add(new DicomSequence(DicomTag.PixelMeasuresSequence, new DicomDataset
+        {
+            { DicomTag.PixelSpacing, Ds(o.RowSpacing), Ds(o.ColumnSpacing) },
+            { DicomTag.SliceThickness, Ds(o.SliceSpacing) },
+        }));
+        shared.Add(new DicomSequence(DicomTag.PixelValueTransformationSequence, new DicomDataset
+        {
+            { DicomTag.RescaleIntercept, "0" },
+            { DicomTag.RescaleSlope, "1" },
+            { DicomTag.RescaleType, "HU" },
+        }));
+        ds.Add(new DicomSequence(DicomTag.SharedFunctionalGroupsSequence, shared));
+
+        var perFrame = new List<DicomDataset>();
+        var pd = DicomPixelData.Create(ds, true);
+        for (var f = 0; f < o.Slices; f++)
+        {
+            var k = o.Slices - 1 - f;
+            var pos = SlicePosition(o, k);
+            perFrame.Add(new DicomDataset
+            {
+                new DicomSequence(DicomTag.PlanePositionSequence, new DicomDataset { { DicomTag.ImagePositionPatient, Ds(pos.X), Ds(pos.Y), Ds(pos.Z) } }),
+            });
+            var pixels = new byte[o.Rows * o.Columns * 2];
+            for (var j = 0; j < o.Rows; j++)
+            for (var i = 0; i < o.Columns; i++)
+            {
+                var v = (short)Math.Clamp(Math.Round(o.Value(PatientPoint(o, i, j, k))), short.MinValue, short.MaxValue);
+                pixels[(j * o.Columns + i) * 2] = (byte)v;
+                pixels[(j * o.Columns + i) * 2 + 1] = (byte)(v >> 8);
+            }
+            pd.AddFrame(new MemoryByteBuffer(pixels));
+        }
+        ds.Add(new DicomSequence(DicomTag.PerFrameFunctionalGroupsSequence, perFrame.ToArray()));
+        var path = Path.Combine(directory, "ENHANCED1");
+        new DicomFile(ds).Save(path);
+        return path;
+    }
+
     /// <summary>Writes a DICOMDIR that references the given files (paths must be inside <paramref name="root"/>).</summary>
     public static string WriteDicomDir(string root, IEnumerable<string> files)
     {

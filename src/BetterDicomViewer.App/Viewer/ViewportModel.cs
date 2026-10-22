@@ -273,6 +273,16 @@ public sealed class ViewportModel
         },
     };
 
+    public bool IsObliqued
+    {
+        get
+        {
+            if (Volume is null || Is3D) return false;
+            var reference = Plane == PlaneKind.Acquisition ? Volume.Source.Geometry!.Normal : Vec3.Cross(PlaneAxes(Plane).Right, PlaneAxes(Plane).Down);
+            return Math.Abs(Vec3.Dot(View.Normal, reference.Normalized())) < 0.9998;
+        }
+    }
+
     public string PlaneLabel => Volume is null ? (Set?.Kind == DisplaySetKind.Frames ? "2D" : "") :
-        Is3D ? "3D" : Plane == PlaneKind.Acquisition ? OrientationNames.PlaneName(View.Normal) : Plane.ToString();
+        Is3D ? "3D" : IsObliqued ? "Oblique" : Plane == PlaneKind.Acquisition ? OrientationNames.PlaneName(View.Normal) : Plane.ToString();
 }

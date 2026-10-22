@@ -317,6 +317,30 @@ public partial class MainWindow
         RefreshInspector();
     }
 
+    /// <summary>
+    /// Initial alignment for viewports in different frames of reference: the same patient position when the stacks
+    /// overlap along the view normal (typical for prior and current scans of one patient), otherwise their centres.
+    /// </summary>
+    private void InitializeLinkOffsets()
+    {
+        _linkOffsets.Clear();
+        for (var i = 0; i < _visible.Count; i++)
+        for (var j = 0; j < _visible.Count; j++)
+        {
+            if (i == j) continue;
+            var a = _visible[i].Model;
+            var b = _visible[j].Model;
+            if (a.Volume is null || b.Volume is null) continue;
+            if (Math.Abs(Vec3.Dot(a.View.Normal, b.View.Normal)) < 0.99) continue;
+            var n = a.View.Normal;
+            var ra = a.Volume.Source.Geometry!.Corners().Select(c => Vec3.Dot(c, n)).ToList();
+            var rb = b.Volume.Source.Geometry!.Corners().Select(c => Vec3.Dot(c, n)).ToList();
+            var overlap = Math.Min(ra.Max(), rb.Max()) - Math.Max(ra.Min(), rb.Min());
+            _linkOffsets[(a.Index, b.Index)] = overlap > 0 ? 0 : Vec3.Dot(b.View.Center, n) - Vec3.Dot(a.View.Center, n);
+        }
+        if (_active is not null && _active.Model.Volume is not null) PropagateSlice(_active);
+    }
+
     private void CaptureLinkOffsets()
     {
         _linkOffsets.Clear();

@@ -94,6 +94,18 @@ public sealed partial class ViewportControl : Grid, IDisposable
         RequestRender();
     }
 
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        var view = Model.View;
+        var (w, h) = DevicePixelSize();
+        if (view.Width > 1 && w > 1) view.Scale *= (double)view.Width / w;
+        view.Width = w;
+        view.Height = h;
+        _bitmap = null;
+        RequestRender();
+    }
+
     public (int W, int H) DevicePixelSize()
     {
         var dpi = VisualTreeHelper.GetDpi(this);
@@ -155,8 +167,9 @@ public sealed partial class ViewportControl : Grid, IDisposable
         }
         else if (Model.Frames is { } frames)
         {
-            var buffer = frames.TryGet(Model.FrameIndex);
-            if (buffer is null) return;
+            var picked = frames.TryGetForScale(Model.FrameIndex, view.Scale / Math.Max(frames.IndexToWorld.Column0.Length, 1e-9));
+            if (picked is not { } level) return;
+            var buffer = level.Buffer;
             if (_pinnedFrame != Model.FrameIndex)
             {
                 if (_pinnedFrame is { } old) frames.Unpin(old);
@@ -167,7 +180,7 @@ public sealed partial class ViewportControl : Grid, IDisposable
             layer = new BaseLayer
             {
                 Data = buffer,
-                WorldToIndex = frames.IndexToWorld.Inverse(),
+                WorldToIndex = level.IndexToWorld.Inverse(),
                 Interpolation = Model.Interpolation,
                 Display = Model.Display,
             };
@@ -258,6 +271,16 @@ public sealed partial class ViewportControl : Grid, IDisposable
         _renderError = frame.Error is null ? null : "3D rendering failed: " + frame.Error;
         DrawOverlay();
         if (!_vrInteractive && (DateTime.UtcNow - _lastVrInteraction).TotalMilliseconds < 50) RequestRender();
+        if (frame.NeedsRefresh)
+        {
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                if (!_vrInteractive) RequestRender();
+            };
+            timer.Start();
+        }
     }
 
     /// <summary>Ends an interactive 3D drag with one full-quality render.</summary>

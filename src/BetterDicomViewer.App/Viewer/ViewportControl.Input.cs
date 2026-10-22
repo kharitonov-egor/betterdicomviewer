@@ -657,6 +657,20 @@ public sealed partial class ViewportControl
         Drag(Move);
     }
 
+    /// <summary>Screen position (DIP) of one rotation handle for <paramref name="target"/>'s plane, and the pivot.</summary>
+    public (Point? Handle, Point Pivot) RotationHandleFor(ViewportControl target)
+    {
+        var pivotWorld = _cursorWorld ?? Model.View.Center;
+        var pivot = ToDip(pivotWorld);
+        var dir = Vec3.Cross(Model.View.Normal, target.Model.View.Normal);
+        if (dir.Length < 1e-3) return (null, pivot);
+        var a = ToDip(pivotWorld - dir.Normalized() * 100);
+        var b = ToDip(pivotWorld + dir.Normalized() * 100);
+        var sd = b - a;
+        sd.Normalize();
+        return (pivot + sd * Math.Min(ActualWidth, ActualHeight) * 0.38, pivot);
+    }
+
     private ViewportControl? FindRotationHandle(Point p)
     {
         if (_cursorWorld is null) return null;

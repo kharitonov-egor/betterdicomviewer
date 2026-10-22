@@ -58,8 +58,9 @@ tools/BetterDicomViewer.Bench     Benchmarks against local data (paths come from
 ## Memory and caches
 
 - Volumes are reference counted while visible. A process-wide budget evicts the least recently used volumes that are not on screen.
-- 2D frame caches are capped at 512 MB per display set by default.
-- On-disk state lives under `%LOCALAPPDATA%\BetterDicomViewer`: the header index, thumbnails (size-capped), annotations and segmentations. The app can clear all of it, and none of it is ever written next to the source scans.
+- 2D frame caches are capped at 512 MB per display set by default, including pyramid levels.
+- On-disk state lives under `%LOCALAPPDATA%\BetterDicomViewer`: the header index, annotations, segmentations and the generated demo study. Thumbnails and decoded images stay in memory. The app can clear the index from the Export and privacy panel, and nothing is ever written next to the source scans.
+- Large 2D images (1536 px or more) get 2x2 box-filtered pyramid levels so they are resampled from a matching level when shown small.
 
 ## Deployment requirements
 
