@@ -39,6 +39,8 @@ if (-not (Test-Path (Join-Path $out 'bdv_vtk.dll'))) { Copy-Item $native $out }
 $licenses = Join-Path $out 'licenses'
 New-Item -ItemType Directory -Force $licenses | Out-Null
 Copy-Item (Join-Path $repo 'THIRD-PARTY-NOTICES.md') $out
+Copy-Item (Join-Path $repo 'LICENSE') (Join-Path $out 'LICENSE.txt')
+Set-Content -Encoding utf8 -Path (Join-Path $out 'SOURCE.txt') -Value 'Better DICOM Viewer is licensed under the Mozilla Public License 2.0 (LICENSE.txt). Source code: https://github.com/kharitonov-egor/betterdicomviewer'
 $vtkLicenses = Join-Path $deps 'vtk-install\share\licenses\VTK'
 if (Test-Path $vtkLicenses) { Copy-Item -Recurse $vtkLicenses (Join-Path $licenses 'VTK') }
 $nuget = Join-Path $env:USERPROFILE '.nuget\packages'
