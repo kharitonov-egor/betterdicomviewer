@@ -52,6 +52,12 @@ public sealed class FrameSetSource : IDisposable
     public double FrameIntervalMs { get; }
     public int Count => Set.Frames.Count;
 
+    private int _leases;
+
+    public int Leases => Volatile.Read(ref _leases);
+    public void Acquire() => Interlocked.Increment(ref _leases);
+    public void Release() => Interlocked.Decrement(ref _leases);
+
     public event Action<int>? FrameReady;
     public event Action<int, string>? FrameFailed;
 

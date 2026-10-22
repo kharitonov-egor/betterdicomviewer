@@ -116,5 +116,5 @@ Status key:
 | Benchmarks of indexing, first image, scrolling, slabs, 3D, memory | Implemented | [benchmarks.md](benchmarks.md) |
 | Truly cold-cache timing (after flushing the OS file cache) | Not done | Requires administrator rights; timings may include OS caching |
 | Installer (MSIX) and code signing | Not done | Release is a self-contained zip |
-| Automated UI tests with assertions | Not done | UI checked through `--script` runs and screenshots |
+| Automated UI tests with assertions | Partial | One end-to-end smoke test drives the real app (`tests/BetterDicomViewer.UiTests`); other UI behaviour was checked through scripted runs and screenshots |
 | Localisation | Not done | English only |

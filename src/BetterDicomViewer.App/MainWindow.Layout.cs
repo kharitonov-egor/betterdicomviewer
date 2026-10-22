@@ -159,7 +159,13 @@ public partial class MainWindow
         SetStatus("MPR: scroll each view independently; the crosshair tool (C) moves all views to a point and its line handles tilt planes for oblique views.");
     }
 
-    private static FusionState CloneFusion(FusionState f) => new()
+    private static FusionState CloneFusion(FusionState f)
+    {
+        f.Pet.Acquire();
+        return CloneFusionState(f);
+    }
+
+    private static FusionState CloneFusionState(FusionState f) => new()
     {
         Pet = f.Pet,
         Opacity = f.Opacity,
@@ -240,7 +246,14 @@ public partial class MainWindow
         return (ct, pet);
     }
 
-    public FusionState NewFusion(ImageVolume pet) => new()
+    /// <summary>Creates a fusion layer that owns one lease on the PET volume (released with the viewport content).</summary>
+    public FusionState NewFusion(ImageVolume pet)
+    {
+        pet.Acquire();
+        return NewFusionState(pet);
+    }
+
+    private static FusionState NewFusionState(ImageVolume pet) => new()
     {
         Pet = pet,
         Opacity = 0.5,
@@ -585,7 +598,7 @@ public partial class MainWindow
         if (number > presets.Count) return;
         ApplyPreset(m, presets[number - 1]);
         PropagateWindow(_active);
-        RefreshInspector();
+        RefreshDisplayControls();
         SetStatus($"Window preset {number}: {presets[number - 1].Name}");
     }
 

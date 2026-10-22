@@ -294,7 +294,9 @@ public sealed partial class ViewportControl : Grid, IDisposable
     {
         if (_pinnedFrame is { } f && Model.Frames is { } frames) frames.Unpin(f);
         _pinnedFrame = null;
+        if (Model.Frames is { } released) _host.Images.Release(released);
         if (Model.Volume is { } v) _host.Images.Release(v);
+        if (Model.Fusion?.Pet is { } pet) _host.Images.Release(pet);
         Model.Clear();
         ClearBitmap();
     }

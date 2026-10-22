@@ -7,6 +7,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BetterDicomViewer.Tests/BetterDicomViewer.Tests.csproj" />
+    <Project Path="tests/BetterDicomViewer.UiTests/BetterDicomViewer.UiTests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/BetterDicomViewer.Bench/BetterDicomViewer.Bench.csproj" />

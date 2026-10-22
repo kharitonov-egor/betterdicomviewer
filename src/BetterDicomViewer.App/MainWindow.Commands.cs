@@ -224,6 +224,7 @@ public partial class MainWindow
         action(_active);
         _active.RequestRender();
         OnViewChanged(_active, ViewChange.Camera);
+        RefreshDisplayControls();
     }
 
     private void ScrollActive(int delta)

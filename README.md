@@ -36,6 +36,7 @@ powershell -File scripts\build-native.ps1
 # Build, test and run
 dotnet test tests\BetterDicomViewer.Tests
 dotnet run --project src\BetterDicomViewer.App
+dotnet test tests\BetterDicomViewer.UiTests   # launches the app
 
 # Self-contained release folder and zip under artifacts\
 powershell -File scripts\package.ps1
@@ -153,7 +154,8 @@ Measured on an i7-13650HX laptop with 32 GB RAM, an NVMe SSD and an RTX 4050 (de
 
 ## Correctness checks
 
-- 76 automated tests on synthetic DICOM data cover patient geometry on oblique and sheared stacks, slice ordering, slab projections, six lossless transfer syntaxes, bit-depth and sign handling, colour conversion, SUV rules, ROI statistics, calibration rules, segmentation, label-map files, de-identification and library scanning (`dotnet test`).
+- 80 unit and integration tests on synthetic DICOM data cover patient geometry on oblique and sheared stacks, slice ordering, enhanced multi-frame geometry, slab projections, six lossless transfer syntaxes, bit-depth and sign handling, colour conversion, SUV rules, ROI statistics, calibration rules, segmentation, label-map files, de-identification and library scanning (`dotnet test tests\BetterDicomViewer.Tests`).
+- A UI smoke test (`dotnet test tests\BetterDicomViewer.UiTests`, about a minute) launches the real app with an isolated app-data folder and drives it with `--script`. It draws and undoes a measurement, opens the MPR + 3D and PET/CT layouts, and redacts and de-identifies the synthetic ultrasound. It then checks the exported files.
 - `tools/validation/compare_simpleitk.py` compares this app's volumes with SimpleITK/GDCM reading the same files. On the local test scans, all 38 CT and PET volumes matched origin, spacing, direction and voxel values (CT exactly, PET within 0.004 Bq/mL).
 
 ## Documentation

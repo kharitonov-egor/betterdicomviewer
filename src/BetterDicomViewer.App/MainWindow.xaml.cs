@@ -36,6 +36,7 @@ public partial class MainWindow : Window, IViewerHost
         Library.Changed += (_, _) => Dispatcher.BeginInvoke(ScheduleLibraryRefresh, DispatcherPriority.Background);
         Annotations.Changed += _ => Dispatcher.BeginInvoke(RefreshMeasurementList);
         Undo.Changed += () => Dispatcher.BeginInvoke(CommandManager.InvalidateRequerySuggested);
+        Images.FrameSourceCreated += HookFrameSource;
 
         for (var i = 0; i < 4; i++)
         {

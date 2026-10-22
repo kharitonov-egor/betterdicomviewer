@@ -343,19 +343,6 @@ public partial class MainWindow
             var start = set.Frames.Count > 1 && set.Frames[0].Instance.IsMultiFrame ? 0 : set.Frames.Count / 2;
             model.ShowFrames(set, frames, start);
             model.CineFps = Math.Clamp(1000.0 / frames.FrameIntervalMs, 1, 60);
-            frames.FrameReady += k =>
-            {
-                if (vc.Model.Frames == frames && k == vc.Model.FrameIndex) Dispatcher.BeginInvoke(() =>
-                {
-                    if (!_defaultsPending.Contains(vc)) vc.RequestRender();
-                    else
-                    {
-                        _defaultsPending.Remove(vc);
-                        ApplyDefaultDisplay(vc.Model);
-                        vc.RequestRender();
-                    }
-                });
-            };
             _defaultsPending.Add(vc);
             ApplyDefaultDisplay(model);
             model.Fit();
@@ -371,6 +358,19 @@ public partial class MainWindow
     }
 
     private readonly HashSet<ViewportControl> _defaultsPending = [];
+
+    /// <summary>One handler per frame source: re-render whichever viewports show the frame that just decoded.</summary>
+    private void HookFrameSource(FrameSetSource frames)
+    {
+        frames.FrameReady += k => Dispatcher.BeginInvoke(() =>
+        {
+            foreach (var v in _visible.Where(v => ReferenceEquals(v.Model.Frames, frames) && v.Model.FrameIndex == k))
+            {
+                if (_defaultsPending.Remove(v)) ApplyDefaultDisplay(v.Model);
+                v.RequestRender();
+            }
+        });
+    }
     private readonly HashSet<ImageVolume> _hookedVolumes = [];
 
     private void HookVolumeProgress(ImageVolume volume)

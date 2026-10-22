@@ -100,7 +100,7 @@ public partial class MainWindow
             RefreshWindowBoxes();
             ColormapCombo.SelectedItem = m.Display.Colormap;
             InterpolationCombo.SelectedIndex = (int)m.Interpolation;
-            InvertCheck.IsChecked = m.Display.Invert;
+            InvertCheck.IsChecked = gray && m.Display.Invert;
             SlabCombo.SelectedIndex = (int)m.View.SlabMode;
             SlabCombo.IsEnabled = m.Volume is not null;
             SlabSlider.Value = m.View.SlabThicknessMm <= 0 ? 10 : Math.Min(100, m.View.SlabThicknessMm);
@@ -150,6 +150,28 @@ public partial class MainWindow
 
     private void RefreshSliceInfo()
     {
+    }
+
+    /// <summary>Updates the display controls after keyboard commands change the active viewport.</summary>
+    private void RefreshDisplayControls()
+    {
+        if (_active?.Model is not { Set: not null } m) return;
+        var wasSyncing = _syncing;
+        _syncing = true;
+        try
+        {
+            RefreshWindowBoxes();
+            InvertCheck.IsChecked = !m.Set.IsColor && m.Display.Invert;
+            ColormapCombo.SelectedItem = m.Display.Colormap;
+            InterpolationCombo.SelectedIndex = (int)m.Interpolation;
+            SlabCombo.SelectedIndex = (int)m.View.SlabMode;
+            if (m.View.SlabThicknessMm > 0) SlabSlider.Value = Math.Min(SlabSlider.Maximum, m.View.SlabThicknessMm);
+            PlaneCombo.SelectedIndex = m.Is3D ? 4 : (int)m.Plane;
+        }
+        finally
+        {
+            _syncing = wasSyncing;
+        }
     }
 
     private void OnDisplaySetChanged(object sender, SelectionChangedEventArgs e)
@@ -638,9 +660,11 @@ public partial class MainWindow
         }
         if (set.FrameOfReferenceUid != m.FrameOfReferenceUid)
             SetStatus("Warning: the PET series uses a different frame of reference; alignment relies on scanner coordinates and may be off.");
+        if (m.Fusion is { } previous) Images.Release(previous.Pet);
         var pet = Images.AcquireVolume(set, set.Geometry!.Nz / 2);
         HookVolumeProgress(pet);
         m.Fusion = NewFusion(pet);
+        Images.Release(pet);
         FusionSection.IsExpanded = true;
         _active.RequestRender();
         RefreshFusionPanel();

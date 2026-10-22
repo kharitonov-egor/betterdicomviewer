@@ -46,11 +46,22 @@ public sealed class ImageStore
     {
         if (!_frames.TryGetValue(set.Id, out var f))
         {
+            EnsureBudget(0);
             f = new FrameSetSource(set);
             _frames[set.Id] = f;
+            FrameSourceCreated?.Invoke(f);
         }
+        f.Acquire();
         _lastUse[set.Id] = ++_clock;
         return f;
+    }
+
+    public event Action<FrameSetSource>? FrameSourceCreated;
+
+    public void Release(FrameSetSource frames)
+    {
+        frames.Release();
+        _lastUse[frames.Set.Id] = ++_clock;
     }
 
     public void Release(ImageVolume volume)
@@ -94,7 +105,8 @@ public sealed class ImageStore
             _volumes.Remove(victim.Source.Id);
             victim.Dispose();
         }
-        foreach (var f in _frames.Where(kv => _lastUse.GetValueOrDefault(kv.Key) < _clock - 20).ToList())
+        // Unleased 2D frame sets beyond the eight most recent are dropped; each holds up to 512 MB of decoded frames.
+        foreach (var f in _frames.Where(kv => kv.Value.Leases <= 0).OrderByDescending(kv => _lastUse.GetValueOrDefault(kv.Key)).Skip(8).ToList())
         {
             _frames.Remove(f.Key);
             f.Value.Dispose();
