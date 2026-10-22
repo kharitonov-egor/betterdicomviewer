@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BetterDicomViewer.Bench</RootNamespace>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterDicomViewer.Core\BetterDicomViewer.Core.csproj" />
+    <ProjectReference Include="..\..\src\BetterDicomViewer.Imaging\BetterDicomViewer.Imaging.csproj" />
+    <ProjectReference Include="..\..\src\BetterDicomViewer.Synthetic\BetterDicomViewer.Synthetic.csproj" />
+  </ItemGroup>
+</Project>

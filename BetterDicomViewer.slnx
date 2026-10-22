@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BetterDicomViewer.App/BetterDicomViewer.App.csproj" />
+    <Project Path="src/BetterDicomViewer.Core/BetterDicomViewer.Core.csproj" />
+    <Project Path="src/BetterDicomViewer.Imaging/BetterDicomViewer.Imaging.csproj" />
+    <Project Path="src/BetterDicomViewer.Synthetic/BetterDicomViewer.Synthetic.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BetterDicomViewer.Tests/BetterDicomViewer.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/BetterDicomViewer.Bench/BetterDicomViewer.Bench.csproj" />
+  </Folder>
+</Solution>

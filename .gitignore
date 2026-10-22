@@ -27,3 +27,8 @@ DICOMDIR
 .env
 .env.*
 !.env.example
+
+# Machine-specific settings (local scan paths, tool locations)
+local.settings.json
+scripts/local.env.ps1
+.deps/

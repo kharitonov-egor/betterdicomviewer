@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>BetterDicomViewer.Imaging</RootNamespace>
+    <NativeOutputDir>$(MSBuildThisFileDirectory)..\..\artifacts\native\</NativeOutputDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BetterDicomViewer.Core\BetterDicomViewer.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(NativeOutputDir)bdv_vtk.dll" Condition="Exists('$(NativeOutputDir)bdv_vtk.dll')" Link="bdv_vtk.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
